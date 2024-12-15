@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import 'dotenv/config';
 import { createZipAndJson, getUnhandled, updateEntry } from './utils.js';
 

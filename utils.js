@@ -6,7 +6,7 @@ export async function getUnhandled(type) {
   const field = type === 'protocols' ? 'document_link' : 'document_links';
   const url = new URL(`${process.env.STRAPI_ENDPOINT}/api/${type}`);
   url.searchParams.set('pagination[page]', 1);
-  url.searchParams.set('pagination[pageSize]', 1);
+  url.searchParams.set('pagination[pageSize]', process.env.NUMBER_PER_JOB);
   url.searchParams.set('filters[document_zip][$null]', 1);
   url.searchParams.set(`filters[${field}][$notNull]`, 1);
   const response = await fetch(url, {
