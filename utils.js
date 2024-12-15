@@ -20,15 +20,23 @@ export async function getUnhandled(type) {
 }
 
 export async function getAllCodesFromDirectory(link) {
-  const url = new URL('https://repot.dev/api/s3/getDirContent');
+  const url = new URL(`${process.env.WEBSITE_URL}/api/s3/getDirContent`);
   url.searchParams.set('prefix', link);
+  console.log('Load codes from:', link);
   const response = await fetch(url, {
     headers: {
       'Content-type': 'application/json',
       'Authorization': `Bearer ${process.env.CRON_TOKEN}`,
     },
   });
-  return await response.json();
+  const result = await response.text();
+  try {
+    return JSON.parse(result);
+  } catch (e) {
+    console.error(e);
+    console.log('xxx', result);
+    process.exit(1);
+  }
 }
 
 export async function uploadZip(codes, name) {
