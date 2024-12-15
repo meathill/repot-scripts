@@ -1,12 +1,13 @@
-import JSZip from "jszip";
-import slugify from "slugify";
+import JSZip from 'jszip';
+import slugify from 'slugify';
+import { omit } from 'lodash-es';
 
 export async function getUnhandled(type) {
   const field = type === 'protocols' ? 'document_link' : 'document_links';
   const url = new URL(`${process.env.STRAPI_ENDPOINT}/api/${type}`);
   url.searchParams.set('pagination[page]', 1);
   url.searchParams.set('pagination[pageSize]', 1);
-  url.searchParams.set('filters[document_zip][$is]', null);
+  url.searchParams.set('filters[document_zip][$null]', 1);
   url.searchParams.set(`filters[${field}][$notNull]`, 1);
   const response = await fetch(url, {
     headers: {
@@ -19,8 +20,8 @@ export async function getUnhandled(type) {
 }
 
 export async function getAllCodesFromDirectory(link) {
-  const url = new URL(`https://repot.dev/api/s3/getDirContent`);
-  url.searchParams.set('dir', link);
+  const url = new URL('https://repot.dev/api/s3/getDirContent');
+  url.searchParams.set('prefix', link);
   const response = await fetch(url, {
     headers: {
       'Content-type': 'application/json',
@@ -35,10 +36,10 @@ export async function uploadZip(codes, name) {
   for (const code of codes) {
     zip.file(code.name, code.content);
   }
-  const content = await zip.generateAsync({type:"nodebuffer"});
+  const content = await zip.generateAsync({ type:'nodebuffer' });
   const formData = new FormData();
   const blob = new Blob([content], { type: 'application/zip' });
-  formData.append('files', blob, `${slugify(name)}.zip`);
+  formData.append('files', blob, `${slugify(name, { lower: true })}.zip`);
   const response = await fetch(`${process.env.STRAPI_ENDPOINT}/api/upload`, {
     method: 'POST',
     headers: {
@@ -47,13 +48,13 @@ export async function uploadZip(codes, name) {
     body: formData,
   });
   const data = await response.json();
-  return data.data;
+  return data[0];
 }
 
 export async function uploadJson(codes, name) {
   const formData = new FormData();
   const blob = new Blob([JSON.stringify(codes)], { type: 'application/json' });
-  formData.append('files', blob, `${slugify(name)}.json`);
+  formData.append('files', blob, `${slugify(name, { lower: true })}.json`);
   const response = await fetch(`${process.env.STRAPI_ENDPOINT}/api/upload`, {
     method: 'POST',
     headers: {
@@ -62,7 +63,7 @@ export async function uploadJson(codes, name) {
     body: formData,
   });
   const data = await response.json();
-  return data.data;
+  return data[0];
 }
 
 export async function updateEntry(type, id, data) {
@@ -72,9 +73,11 @@ export async function updateEntry(type, id, data) {
       'Content-type': 'application/json',
       'Authorization': `Bearer ${process.env.STRAPI_TOKEN}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      data: omit(data, ['id', 'documentId', 'createdAt', 'updatedAt', 'publishedAt']),
+    }),
   });
-  await response.json();
+  return await response.json();
 }
 
 export async function createZipAndJson(name, root, suiVersion) {
@@ -97,5 +100,5 @@ export async function createZipAndJson(name, root, suiVersion) {
   }
   const jsonUrl = await uploadJson(codes, name);
 
-  return [zipUrl, jsonUrl];
+  return [zipUrl.url, jsonUrl.url];
 }
